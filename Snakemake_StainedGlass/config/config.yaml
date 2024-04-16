@@ -1,0 +1,19 @@
+workdir: "/public/home/Snakemake_StainedGlass"
+sample: Jin668
+fasta: "Jin668.centromere.fasta"
+fasta_type: centromere      # centromere or whole
+split_genome_fasta: false
+chromosome: ["Ghjin_A01","Ghjin_A02","Ghjin_A03","Ghjin_A04","Ghjin_A05","Ghjin_A06","Ghjin_A07","Ghjin_A08","Ghjin_A09","Ghjin_A10","Ghjin_A11","Ghjin_A12","Ghjin_A13","Ghjin_D01","Ghjin_D02","Ghjin_D03","Ghjin_D04","Ghjin_D05","Ghjin_D06","Ghjin_D07","Ghjin_D08","Ghjin_D09","Ghjin_D10","Ghjin_D11","Ghjin_D12","Ghjin_D13"]
+# Size of the window in which to breakup the input fasta before all by all alignment. Heatmaps show pairwise sequence identity between all nonoverlapping 5-kbp regions.
+window: 1000       # ["50", "100", "500", "1000", "2000", "5000", "10000", "50000", "100000"]
+
+slide: 0
+# The number of alignment jobs to distribute the workflow across.
+nbatch: 4
+# The number of alignment threads per job.
+alnthreads: 5
+# Setting for the minimap2 -f parameter. A smaller number will increase sensitivity at the cost of runtime. See the minimap2 man page for more details.
+mm_f: 0.0002
+tempdir: temp
+# This defines the smallest bin size (highest resolution) used in the cooler file.
+cooler_window: 100

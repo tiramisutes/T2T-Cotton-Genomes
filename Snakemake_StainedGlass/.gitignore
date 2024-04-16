@@ -1,0 +1,17 @@
+.vscode/**
+.snakemake/**
+results/**
+logs/**
+stained_glass.code-workspace
+docs/paper/**_latex**
+docs/paper/main.aux
+docs/paper/main.dvi
+docs/paper/main.fls
+docs/paper/main.log
+docs/paper/main.synctex.gz
+docs/paper/tmp/**
+docs/paper/main.bbl
+docs/paper/main.blg
+docs/paper/main.out
+temp/**
+Rplots**

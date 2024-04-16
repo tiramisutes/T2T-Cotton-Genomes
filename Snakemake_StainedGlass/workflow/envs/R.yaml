@@ -1,0 +1,20 @@
+name: R
+channels:
+  - bioconda
+  - conda-forge
+  - defaults
+dependencies:
+  - xorg-libx11
+  - xorg-libxau
+  - r-base>=4.0
+  - r-essentials
+  - r-cairo
+  - r::r-tidyverse
+  - r-data.table
+  - r-cowplot
+  - r-argparse>=2.1.2
+  - r-glue
+  - r::r-rcolorbrewer
+  - r::r-scales
+  - r::r-ggplot2
+  - r-r.utils

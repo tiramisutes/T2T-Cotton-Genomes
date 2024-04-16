@@ -1,0 +1,153 @@
+import math
+import os
+import pathlib
+import sys
+
+from snakemake.utils import min_version
+
+#min_version("6.0")
+
+####################################################################################################################
+bold = "\033[1m"
+green = "\033[92m"
+cyan = "\033[36m"
+end = "\033[0m"
+msg = f"""{green}{bold}Thanks for using StainedGlass and please remember to cite the tool!{end}{end}
+    {cyan}Mitchell R Vollger, Peter Kerpedjiev, Adam M Phillippy, Evan E Eichler.
+            "StainedGlass: Interactive visualization of massive tandem repeat structures with identity heatmaps"
+            Bioinformatics, 2022; https://doi.org/10.1093/bioinformatics/btac018{end}
+
+"""
+sys.stderr.write(msg)
+
+SDIR = os.path.realpath(os.path.dirname(srcdir("Snakefile")))
+shell.prefix(f"set -eo pipefail; ")
+
+logs = pathlib.Path("./logs/cluster")
+
+if logs.is_dir():
+    pass
+    #print("#"*40 + "\n" + "        The logs exist." + "\n" + "#"*40 + "\n")
+else:
+    #print("#"*40 + "\n" + "Now, create the logs directory." + "\n")
+    os.system('mkdir -p ./logs/cluster')
+    #print("#"*40 + "\n")
+
+####################################################################################################################
+configfile: "config/config.yaml"
+####################################################################################################################
+#
+# global options
+#
+N = config.pop("nbatch", 1)
+NUM_DUPS = config.pop("num_dups", 100)
+SM = config.pop("sample", "sample")
+W = config.pop("window", 2000)
+CW = config.pop("cooler_window", int(W))
+ALN_T = config.pop("alnthreads", 4)
+F = config.pop("mm_f", 10000)
+S = config.pop("mm_s", int(W / 5))
+TEMP_DIR = config.pop("tempdir", "temp")
+SAMTOOLS_MEM = config.pop("samtools_mem", 1)
+SLIDE = config.pop("slide", 0)
+
+assert W > SLIDE, f"window ({W}) must be larger than slide ({SLIDE})."
+
+# short vs long read mapping
+MAP_PARAMS = "-ax ava-ont "
+if W < 500:
+    MAP_PARAMS = " -a --no-pairing -k21 --sr -A2 -B8 -O12,32 -E2,1 -r100 -g100 -2K50m --heap-sort=yes -X -w 5 -e0 "
+elif SLIDE > 0:
+    S = config.pop("mm_s", 100)
+    MAP_PARAMS = "-ax map-ont --secondary=no"
+
+if TEMP_DIR != "temp":
+    if os.path.exists("temp"):
+        if os.path.realpath("temp") == os.path.realpath(TEMP_DIR):
+            print("The temp dir has already been linked.")
+        else:
+            sys.exit("temp/ already in use, please move it before running.")
+    else:
+        shell("ln -s {TEMP_DIR} temp")
+
+#
+# required arguments
+#
+FASTA = os.path.abspath(config["fasta"])
+
+FAI = f"{FASTA}.fai"
+if not os.path.exists(FAI):
+    sys.exit(f"Input fasta must be indexed, try:\nsamtools faidx {FASTA}")
+
+#
+# setup split and gather
+#
+lengths = [math.ceil(int(line.split()[1]) / W) for line in open(FAI).readlines()]
+names = [line.split()[0] for line in open(FAI).readlines()]
+REF_IDS = [f"ref_{i}" for i in range(len(names))] if SLIDE > 0 else ["ref_0"]
+N_WINDOWS = int(sum(lengths))
+N = min(N, N_WINDOWS)
+IDS = list(range(N))
+sys.stderr.write(f"[INFO] The sequence will be split into {N} batches.\n")
+
+####################################################################################################################
+wildcard_constraints:
+    ID="|".join(map(str, IDS)),
+    REF_ID="|".join(map(str, REF_IDS)),
+    SM=SM,
+    W=W,
+    F=F,
+
+####################################################################################################################
+localrules:
+    all,
+    SGS_1_genome_oneline,
+    SGS_2_genome_oneline_split,
+    SGS_3_make_windows,
+    SG_3_make_windows,
+    SGS_4_split_windows,
+    SG_4_split_windows,
+    SGS_5_window_fa,
+    SG_5_window_fa,
+    SGS_6_split_fa,
+    SG_6_split_fa,
+    SGS_8_query_prep,
+    SG_8_query_prep,
+    SGS_10_merge_list,
+    SG_10_merge_list,
+    SG_20_cooler_zoomify_i,
+    SG_19_cooler_zoomify_s
+
+####################################################################################################################
+rule all:
+    input:
+        #sort = expand("results/{SM}/{SM}.{W}.{F}.sorted.bam", SM=SM, W=W, F=F) if config["fasta_type"] == "centromere" else [],
+        beds = expand("results/{SM}/{SM}.{W}.{F}.bed.gz", SM=SM, W=W, F=F) if config["fasta_type"] == "centromere" else [],
+        #fulls = expand("results/{SM}/{SM}.{W}.{F}.full.tbl.gz", SM=SM, W=W, F=F) if config["fasta_type"] == "centromere" else [],
+        ## plot figure
+        make_figures = expand("results/{SM}/{SM}.{W}.{F}_figures/pdfs/{SM}.{W}.{F}.tri.TRUE__onecolorscale.FALSE__all.pdf", SM=SM, W=W, F=F) if config["fasta_type"] == "centromere" else [],
+        ## cooler:
+        cool_s = expand("results/{SM}/{SM}.{W}.{F}.strand.cool", SM=SM, W=W, F=F) if config["fasta_type"] == "whole" else [],
+        cool_i = expand("results/{SM}/{SM}.{W}.{F}.identity.cool", SM=SM, W=W, F=F) if config["fasta_type"] == "whole" else [],
+        cool_sm = expand("results/{SM}/{SM}.{W}.{F}.strand.mcool", SM=SM, W=W, F=F) if config["fasta_type"] == "whole" else [],
+        cool_im = expand("results/{SM}/{SM}.{W}.{F}.identity.mcool", SM=SM, W=W, F=F) if config["fasta_type"] == "whole" else [],
+        # 高分辨率 cooler_density:
+        cool_d = expand("results/{SM}/{SM}.{W}.{CW}.density.mcool", SM=SM, W=W, CW=CW) if config["fasta_type"] == "whole" else []
+
+####################################################################################################################
+##### setup singularity #####
+
+# this container defines the underlying OS for each job when using the workflow
+# with --use-conda --use-singularity
+singularity: "docker://continuumio/miniconda3"
+
+
+##### setup report #####
+
+report: "report/workflow.rst"
+
+
+##### load rules #####
+
+include: "rules/StainedGlass.smk"
+
