@@ -1,4 +1,4 @@
-# T2T-Cotton-Genomes
+# T2T-Cotton-Genomes 🍭
 Genome assembly of two allotetraploid cotton germplasms reveals mechanisms of somatic embryogenesis and enables precise genome editing.
 
 Here, we assembled the telomere-to-telomere (T2T) genome of Jin668 and the lessgaps genome of YZ1, two allotetraploid cotton germplasms with high regeneration efficiency.
