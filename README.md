@@ -7,7 +7,7 @@ Here, we assembled the telomere-to-telomere (T2T) genome of Jin668 and the high-
 # The website
 
 We have implemented a web-based database hosting the genoimc datsets and provide a series of user-friendly tools. Please see http://jinlab.hzau.edu.cn/T2TCottonHub/ for more details.
-![](/docs/CottonHub.png)
+![](/docs/T2TCottonhub.png)
 
 # Citation
 
